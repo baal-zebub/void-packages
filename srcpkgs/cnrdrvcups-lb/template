@@ -1,0 +1,162 @@
+pkgname=cnrdrvcups-lb
+version=6.10
+revision=1
+archs="i686 x86_64"
+create_wrksrc=yes
+build_wrksrc=build
+hostmakedepends="autoconf automake glib-devel gettext libtool libxml2-devel pkg-config"
+makedepends="cups-devel gtk+-devel gtk+3-devel"
+depends="colord cups cups-filters eudev gtk+3 libusb"
+short_desc="UFRII printer driver for Canon LBP printers"
+maintainer="Kamil Smardzewski <roderyk197@gmail.com>"
+license="custom:Canon-UFR-II,GPL-2.0-or-later,MIT"
+homepage="https://www.canon-europe.com/support/consumer_products/products/printers/laser/i-sensys_lbp6030w.html?type=drivers&language=en&os=linux%20(64-bit)"
+_dl='8/0100007658/46'
+_version="${version//\./}"
+_suffix1='m17n'
+_suffix2='03'
+distfiles="https://gdlp01.c-wss.com/gds/${_dl}/linux-UFRII-drv-v$_version-${_suffix1}-${_suffix2}.tar.gz"
+checksum="4a9c8a067c72e1404ab10561d326ab5d67135e650a59f1f87b37ca05026342e2"
+repository="nonfree"
+nopie=yes
+_common_dir="cnrdrvcups-common-${version}"
+_driver_dir="cnrdrvcups-lb-${version}"
+_util_dir="cnrdrvcups-utility-$version"
+
+case $XBPS_TARGET_MACHINE in
+	x86_64)
+		_bits=64
+		;;
+	i686)
+		_bits=32
+		;;
+esac
+
+CFLAGS="-fcommon"
+
+common_op() {
+	local i
+	for i in backend buftool cngplp cnjbig rasterfilter; do
+		pushd "cnrdrvcups-common-${version}/${i}"
+		"${@}"
+		popd
+	done
+}
+
+driver_op() {
+	local i
+	for i in cngplp cngplp/files cpca pdftocpca; do
+		pushd "cnrdrvcups-lb-${version}/${i}"
+		"${@}"
+		popd
+	done
+}
+
+post_extract() {
+	mkdir ${build_wrksrc}
+	bsdtar xvf linux-UFRII-drv-v${_version}-${_suffix1}/Sources/${pkgname}-${version}-1.${_suffix2}.tar.xz -C ${build_wrksrc}
+}
+
+do_patch() {
+	patch -Np1 -d  $_driver_dir/cngplp/cngplpmod < $FILESDIR/replace_incorrect_int_with_char.patch
+}
+
+pre_configure() {
+	common_op ./autogen.sh --prefix=/usr
+	driver_op ./autogen.sh --prefix=/usr
+
+	# Fix a QA issue with .desktop file,
+	sed -i 's/Application;Utility/Utility/g' "cnrdrvcups-utility-$version/data/cnsetuputil2.desktop"
+}
+
+do_build() {
+	common_op make LDFLAGS="-L${wrksrc}/${build_wrksrc}/cnrdrvcups-common-${version}/buftool $LDFLAGS"
+	driver_op make LDFLAGS="-L${wrksrc}/${build_wrksrc}/cnrdrvcups-common-${version}/buftool $LDFLAGS"
+}
+
+do_install() {
+	common_op make install DESTDIR=$DESTDIR
+	driver_op make install DESTDIR=$DESTDIR
+
+	vmkdir usr/share/cups
+	vinstall $_common_dir/Rule/canon-laser-printer.usb-quirks 644 usr/share/cups
+
+	pushd lib/libs$_bits/intel
+
+	vinstall libcaepcmufr2.so.1.0 644 usr/lib
+	vinstall libcaiocnpkbidir.so.1.0.0 644 usr/lib
+	vinstall libcaiowrapufr2.so.1.0.0 644 usr/lib
+	vinstall libcanonufr2r.so.1.0.0 644 usr/lib
+	vinstall libcanon_slimufr2.so.1.0.0 644 usr/lib
+	vinstall libcnlbcmr.so.1.0 644 usr/lib
+	vinstall libColorGearCufr2.so.2.0.0 644 usr/lib
+	vinstall libufr2filterr.so.1.0.0 644 usr/lib
+
+	pushd $DESTDIR/usr/lib
+
+	ln -sf libcaepcmufr2.so.1.0 libcaepcmufr2.so
+	ln -sf libcaepcmufr2.so.1.0 libcaepcmufr2.so.1
+
+	ln -sf libcaiocnpkbidir.so.1.0.0 libcaiocnpkbidir.so
+	ln -sf libcaiocnpkbidir.so.1.0.0 libcaiocnpkbidir.so.1
+
+	ln -sf libcaiowrapufr2.so.1.0.0 libcaiowrapufr2.so
+	ln -sf libcaiowrapufr2.so.1.0.0 libcaiowrapufr2.so.1
+
+	ln -sf libcanonufr2r.so.1.0.0 libcanonufr2r.so
+	ln -sf libcanonufr2r.so.1.0.0 libcanonufr2r.so.1
+
+	ln -sf libcanon_slimufr2.so.1.0.0 libcanon_slimufr2.so
+	ln -sf libcanon_slimufr2.so.1.0.0 libcanon_slimufr2.so.1
+
+	ln -sf libcnlbcmr.so.1.0 libcnlbcmr.so
+	ln -sf libcnlbcmr.so.1.0 libcnlbcmr.so.1
+
+	ln -sf libColorGearCufr2.so.2.0.0 libColorGearCufr2.so
+	ln -sf libColorGearCufr2.so.2.0.0 libColorGearCufr2.so.2
+
+	ln -sf libufr2filterr.so.1.0.0 libufr2filterr.so
+	ln -sf libufr2filterr.so.1.0.0 libufr2filterr.so.1
+
+	popd
+
+	vbin cnpdfdrv
+	vbin cnpkbidir
+	vbin cnpkmoduleufr2r
+	vbin cnrsdrvufr2
+	vbin cnsetuputil2
+
+	vmkdir usr/share/cnpkbidir
+	vcopy cnpkbidir_info* usr/share/cnpkbidir
+	vmkdir usr/share/ufr2filterr
+	vcopy ./ThLB* usr/share/ufr2filterr
+
+	popd
+
+	pushd $DESTDIR
+	vmkdir usr/libexec/cups/backend/
+	ln -sf ../../lib/cups/backend/cnusb usr/libexec/cups/backend/
+	vmkdir usr/libexec/cups/filter/
+	ln -sf ../../lib/cups/filter/pdftocpca usr/libexec/cups/filter/
+	ln -sf ../../lib/cups/filter/rastertoufr2 usr/libexec/cups/filter/
+	popd
+
+	vmkdir usr/share/caepcm/ufr2
+	vcopy lib/data/ufr2 usr/share/caepcm/ufr2
+	vmkdir usr/share/cups/model
+	vcopy $_driver_dir/ppd/*.ppd usr/share/cups/model/
+
+	vmkdir usr/share/cnsetuputil2
+	vcopy $_util_dir/data/cnsetuputil.ui usr/share/cnsetuputil2/
+
+	vinstall $_util_dir/data/cnsetuputil2.desktop 644 usr/share/applications/
+	vinstall $_util_dir/data/cnsetuputil.png 644 usr/share/pixmaps/
+
+	vdoc ${wrksrc}/linux-UFRII-drv-v$_version-$_suffix1/Documents/uk_eng/README-ufr2-6.1xUK.html README-ufr2-6.1xUK.html
+	vdoc ${wrksrc}/linux-UFRII-drv-v$_version-$_suffix1/Documents/uk_eng/UsersGuide-ufr2-UK.html UsersGuide-ufr2-UK.html
+
+	vdoc $_common_dir/README README.common
+	vdoc $_common_dir/cngplp/README README.cngplp.common
+	vdoc $_driver_dir/README README.lb
+	vdoc $_driver_dir/cngplp/README README.cngplp.driver
+}
