@@ -1,7 +1,7 @@
 # Template file for 'guake'
 pkgname=guake
-version=3.7.0
-revision=2
+version=3.8.1
+revision=1
 build_style=python3-module
 hostmakedepends="gettext python3-setuptools python3-pbr"
 makedepends="python3-devel python3-pbr"
@@ -12,8 +12,10 @@ short_desc="Drop-down terminal for GNOME"
 maintainer="Orphaned <orphan@voidlinux.org>"
 license="GPL-2.0-or-later"
 homepage="http://guake-project.org/"
-distfiles="${PYPI_SITE}/g/guake/guake-${version}.tar.gz"
-checksum=31fd7d6f62aa0a5e0121e240682e6a9e5ce61cdb266f9438987837f52d552e47
+distfiles="https://github.com/Guake/guake/archive/refs/tags/${version}.tar.gz"
+checksum=a4ec03a3d9ea7383b9c3a428a7991f940fc6055d6dbd313a17450de2424c4f8e
+
+export PBR_VERSION=${version}
 
 pre_build() {
 	GUAKE_SCHEMA_DIR="/usr/share/glib-2.0/schemas"
